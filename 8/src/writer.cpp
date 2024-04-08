@@ -15,7 +15,10 @@ Writer::Writer(std::string file){
 }
 
 void Writer::setFileName(std::string filename) {
-	vmFilename = filename;
+	std::vector sFilename = split(filename, "/");
+	std::string bFilename = sFilename.back();
+	sFilename = split(bFilename, ".");
+	vmFilename = sFilename.front();
 }
 
 void Writer::writeLabel(std::string label) {
@@ -104,7 +107,17 @@ void Writer::writeCall(std::string functionName, std::string nVars) {
 
 void Writer::writeReturn() {
 	
-	//save return value to temp
+	//save Return Address
+
+	writeCommand("@5");
+	writeCommand("D=A");
+	writeCommand("@LCL");
+	writeCommand("D=M-D");
+	writeCommand("A=D");
+	writeCommand("D=M");
+	writeCommand(M_RETURN);
+	writeCommand("M=D");
+	
 	writePushPop(c::C_POP, "argument", "0");
 
 	writeCommand("@ARG");
@@ -114,19 +127,19 @@ void Writer::writeReturn() {
 
 	writeCommand("@LCL");
 	writeCommand("D=M");
-	writeCommand(M_FRAME);
-	writeCommand("M=D-1");
+
 	for (int p = 4; p > 0; p--) {
+		writeCommand(M_FRAME);
+		if (p == 4) { writeCommand("M=D-1"); }
+		else { writeCommand("M=M-1"); }
+
 		writeCommand("A=M");
 		writeCommand("D=M");
 		writeCommand("@" + itoa(p));
 		writeCommand("M=D");
-
-		writeCommand(M_FRAME);
-		writeCommand("M=M-1");
 	}
 	//get return addr
-	writeCommand("A=M");
+	writeCommand(M_RETURN);
 	writeCommand("A=M");
 
 	//return
@@ -206,7 +219,7 @@ void Writer::writePushPop(int command, std::string segment, std::string index){
 		if (segment == "this") { pushSegment("THIS", index); }
 		if (segment == "that") { pushSegment("THAT", index); }
 		if (segment == "temp") { pushVar("R"+itoa(5+stoi(index))); }
-		if (segment == "static") { pushVar(prefix+"."+index); }
+		if (segment == "static") { pushVar(prefix+vmFilename+"."+index); }
 		if (segment == "pointer") { pushVar("R"+itoa(3+stoi(index))); }
 	} else if (command == c::C_POP) {
 		if (segment == "local") { popSegment("LCL", index); }
@@ -214,7 +227,7 @@ void Writer::writePushPop(int command, std::string segment, std::string index){
 		if (segment == "this") { popSegment("THIS", index); }
 		if (segment == "that") { popSegment("THAT", index); }
 		if (segment == "temp") { popVar("R"+itoa(5+stoi(index))); }
-		if (segment == "static") { popVar(prefix+"."+index); }
+		if (segment == "static") { popVar(prefix+vmFilename+"."+index); }
 		if (segment == "pointer") { popVar("R"+itoa(3+stoi(index))); }
 	}
 }
