@@ -29,14 +29,17 @@ class Writer {
 		std::string prefix;
 		std::vector<std::string> subs;
 		int addr;
+		int iCR;
 		const std::string M_RETURN = "@R13";
-		const std::string M_SEGP = "@R14";
+		const std::string M_COPY = "@R14";
+		const std::string M_FRAME = "@R15";
 
 		void initAsm();
 		void writeCommand(std::string command);
                 void push(std::string index); 
 		void writeComparison(std::string cmd);
 		void incrementPointer(std::string p);
+		void decrementPointer(std::string p);
 		void popValue(std::string p);
 		void popSegment(std::string segment, std::string index);
 		void pushSegment(std::string segment, std::string index);

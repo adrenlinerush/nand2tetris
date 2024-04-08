@@ -50,20 +50,6 @@ void Parser::advance(){
 	setCommandType();
 }
 
-std::vector<std::string> Parser::split(std::string s, const char* d){
-	std::vector<std::string> args;
-	unsigned int pos = s.find(d);
-	while (pos < s.size()){
-		args.push_back(s.substr(0,pos));
-		printf ("Split item: %s\n", args.back().c_str());
-		s.erase(0,pos+1);
-		pos = s.find(d);
-	}
-	printf ("Remaining string: %s\n", s.c_str());
-	args.push_back(s);
-	return args;
-}
-
 void Parser::setCommandType(){
 	printf ("setCommandType for %s.\n", command.c_str());
 	if (command == "push") { printf("push\n");  commandType = c::C_PUSH; return; };
@@ -75,9 +61,9 @@ void Parser::setCommandType(){
 	if (command == "label") { printf("label\n");  commandType = c::C_LABEL; return; };
 	if (command == "goto") { printf("goto\n");  commandType = c::C_GOTO; return; };
 	if (command == "if-goto") { printf("if-goto\n");  commandType = c::C_IF; return; };
-	if (command == "function") { printf("goto\n");  commandType = c::C_FUNCTION; return; };
-	if (command == "call") { printf("goto\n");  commandType = c::C_CALL; return; };
-	if (command == "return") { printf("goto\n");  commandType = c::C_RETURN; return; };
+	if (command == "function") { printf("function\n");  commandType = c::C_FUNCTION; return; };
+	if (command == "call") { printf("call\n");  commandType = c::C_CALL; return; };
+	if (command == "return") { printf("return\n");  commandType = c::C_RETURN; return; };
 }
 
 int Parser::getCommandType(){ return commandType; }

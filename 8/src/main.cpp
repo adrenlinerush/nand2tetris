@@ -4,6 +4,7 @@
 #include <string>
 #include <cstring>
 #include <filesystem>
+#include <vector>
 
 namespace fs = std::filesystem;
 
@@ -55,6 +56,10 @@ int main (int argc, char *argv[])
   int argLen = arg1.length();
   std::string suffix = arg1.substr(argLen-3);
   std::string filePrefix = std::regex_replace(arg1, std::regex(".vm"), "");
+  if (fs::status(argv[1]).type() == fs::file_type::directory) {
+    std::vector vPath = split(argv[1], "/");
+    filePrefix = filePrefix + "/" + vPath.back();
+  }
   Writer* asmWriter = new Writer(filePrefix);
   printf ("Binary file will output as: %s.asm\n", filePrefix.c_str());
   if (fs::status(argv[1]).type() == fs::file_type::directory) {

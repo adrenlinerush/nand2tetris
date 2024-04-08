@@ -7,6 +7,7 @@ Writer::Writer(std::string file){
 		prefix = file.substr(start+1);
 	}
 	addr = 0;
+	iCR = 0;
 	std::string filename = file+".asm";
 	printf("Openning asm file.\n");
 	asmFile.open (filename);
@@ -32,19 +33,104 @@ void Writer::writeIf(std::string label) {
 	popValue("SP");
 	writeCommand("D=M");
 	writeCommand("@"+label);
-	writeCommand("D;JGT");
+	writeCommand("D;JNE");
 }
 
 void Writer::writeFunction(std::string functionName, std::string nVars) {
-
+	writeLabel(functionName);
+      
+	for (int l = 0; l < stoi(nVars); l++) {
+		setSegAddr("LCL", itoa(l));
+		writeCommand("A=D");
+		writeCommand("M=0");
+		incrementPointer("SP");
+	}
 }
 
 void Writer::writeCall(std::string functionName, std::string nVars) {
+	//push return address
+	writeCommand("@return"+itoa(iCR));
+	writeCommand("D=A");
+	writeCommand("@SP");
+	writeCommand("A=M");
+	writeCommand("M=D");
+	incrementPointer("SP");
+	
+	//store off LCL, ARG, THIS, THAT
+	for (int p = 1; p < 5; p++) {
+		writeCommand("@" + itoa(p));
+		writeCommand("D=M");
+		writeCommand("@SP");
+		writeCommand("A=M");
+		writeCommand("M=D");
+		incrementPointer("SP");
+	}
+
+	//Positions Arg
+	
+	//Push SP Value to the Stack
+	writeCommand("@SP");
+	writeCommand("D=M");
+	writeCommand("A=M");
+	writeCommand("M=D");
+	incrementPointer("SP");
+	
+	//Subtract 5 and nVars from SP
+	writePushPop(c::C_PUSH, "constant", "5");
+	writeArithmetic("sub");
+	writePushPop(c::C_PUSH, "constant", nVars);
+	writeArithmetic("sub");
+
+	//Pop Value to ARG
+	popValue("SP");
+	writeCommand("D=M");
+	writeCommand("@ARG");
+	writeCommand("M=D");
+
+	//Set LCL to SP
+	writeCommand("@SP");
+	writeCommand("D=M");
+	writeCommand("@LCL");
+	writeCommand("M=D");
+	
+	//actual function call
+	writeGoto(functionName);
+
+	//inject return address label
+	writeLabel("return"+itoa(iCR));
+	iCR++;
 
 }
 
 void Writer::writeReturn() {
+	
+	//save return value to temp
+	writePushPop(c::C_POP, "argument", "0");
 
+	writeCommand("@ARG");
+	writeCommand("D=M+1");
+	writeCommand("@SP");
+	writeCommand("M=D");
+
+	writeCommand("@LCL");
+	writeCommand("D=M");
+	writeCommand(M_FRAME);
+	writeCommand("M=D-1");
+	for (int p = 4; p > 0; p--) {
+		writeCommand("A=M");
+		writeCommand("D=M");
+		writeCommand("@" + itoa(p));
+		writeCommand("M=D");
+
+		writeCommand(M_FRAME);
+		writeCommand("M=M-1");
+	}
+	//get return addr
+	writeCommand("A=M");
+	writeCommand("A=M");
+
+	//return
+	writeCommand("0;JMP");
 }
 
 void Writer::writeArithmetic(std::string command){
@@ -72,29 +158,36 @@ void Writer::writeArithmetic(std::string command){
 
 void Writer::writeComparison(std::string cmd) {
 	//Set return address
-	int returnAddr = addr+16; //current address + number of commands
-	writeCommand("@"+itoa(returnAddr)); //2
-	writeCommand("D=A"); //3
-	writeCommand(M_RETURN); //4
-	writeCommand("M=D"); //5
+	writeCommand("@BRET"+itoa(iCR));
+	writeCommand("D=A"); 
+	writeCommand(M_RETURN);
+	writeCommand("M=D"); 
 
 	//Pop last 2 values and compare
-	popValue("SP"); //+3 Commands 6..7..8
-	writeCommand("D=M"); //9
-	popValue("SP"); //+3 Commands 10..11..12
-	writeCommand("D=M-D"); //12
-	writeCommand("@SETTRUE"); //13
-	if (cmd == "gt") { writeCommand("D;JGT"); } //14
+	popValue("SP");
+	writeCommand("D=M"); 
+	popValue("SP"); 
+	writeCommand("D=M-D"); 
+	writeCommand("@SETTRUE"); 
+	if (cmd == "gt") { writeCommand("D;JGT"); } 
 	if (cmd == "lt") { writeCommand("D;JLT"); }
 	if (cmd == "eq") { writeCommand("D;JEQ"); }
-	writeCommand("@SETFALSE"); //15
-	writeCommand("0;JMP");  //16
+	writeCommand("@SETFALSE"); 
+	writeCommand("0;JMP");  
+	
+	writeLabel("BRET"+itoa(iCR));
+	iCR++;
 	incrementPointer("SP"); //<-- where I want to return
 }
 
 void Writer::incrementPointer(std::string p) {
 	writeCommand("@"+p);
 	writeCommand("M=M+1");
+}
+
+void Writer::decrementPointer(::std::string p) {
+	writeCommand("@"+p);
+	writeCommand("M=M-1");
 }
 
 void Writer::popValue(std::string p) {
@@ -127,12 +220,6 @@ void Writer::writePushPop(int command, std::string segment, std::string index){
 }
 
 void Writer::close(){
-	writeCommand("@END");
-	writeCommand("0;JMP");
-
-	//Write out subs
-	
-
 	//Initialize True Value 
 	writeCommand("(SETTRUE)");
 	writeCommand("@SP");
@@ -151,11 +238,6 @@ void Writer::close(){
 	writeCommand("A=M");
 	writeCommand("0;JMP");
 	
-	//Good practice to end with infinite loop
-	writeCommand("(END)");
-	writeCommand("@END");
-	writeCommand("0;JMP");
-
 	//Close the file
 	printf("Closing asm file.\n");
 	asmFile.close();
@@ -164,10 +246,11 @@ void Writer::close(){
 void Writer::initAsm(){
 	//Initialize Stack Pointer and Base Adress of segments
 	setVReg("256", "SP");
-	//setVReg("300", "LCL");
-	//setVReg("400", "ARG");
-	//setVReg("3000", "THIS");
-	//setVReg("3010", "THAT");
+	setVReg("0", "LCL");
+	setVReg("0", "ARG");
+	setVReg("0", "THIS");
+	setVReg("0", "THAT");
+	writeCall("Sys.init", "0");
 }
 
 void Writer::setSegAddr(std::string segment, std::string index) {
@@ -179,11 +262,11 @@ void Writer::setSegAddr(std::string segment, std::string index) {
 
 void Writer::popSegment(std::string segment, std::string index) {
 	setSegAddr(segment, index);
-	writeCommand(M_SEGP);
+	writeCommand(M_COPY);
 	writeCommand("M=D");
 	popValue("SP");
 	writeCommand("D=M");
-	writeCommand(M_SEGP);
+	writeCommand(M_COPY);
 	writeCommand("A=M");
 	writeCommand("M=D");
 }
@@ -232,7 +315,7 @@ void Writer::pushVar(std::string name) {
 
 void Writer::writeCommand(std::string command)
 {
-	printf("%s\n",command.c_str());
+	printf("%i: %s\n", addr, command.c_str());
 	asmFile << command << "\n";  
 	addr++;
 }

@@ -25,8 +25,6 @@ class Parser {
 		int commandType = -1;
 		std::vector<std::string> commands;
 
-
-		std::vector<std::string> split(std::string s, const char* d);
 		void setCommandType();
 
 };

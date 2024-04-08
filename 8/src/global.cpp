@@ -4,6 +4,7 @@
 #include <string>
 #include <sstream>
 #include <algorithm>
+#include <vector>
 
 namespace c {
 	const int C_ARITHMETIC = 0;
@@ -43,6 +44,20 @@ inline void rtrim(std::string &s) {
 inline void trim(std::string &s) {
   rtrim(s);
   ltrim(s);
+}
+
+inline std::vector<std::string> split(std::string s, const char* d){
+	std::vector<std::string> args;
+	unsigned int pos = s.find(d);
+	while (pos < s.size()){
+		args.push_back(s.substr(0,pos));
+		printf ("Split item: %s\n", args.back().c_str());
+		s.erase(0,pos+1);
+		pos = s.find(d);
+	}
+	printf ("Remaining string: %s\n", s.c_str());
+	args.push_back(s);
+	return args;
 }
 
 #endif
